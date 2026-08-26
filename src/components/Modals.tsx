@@ -19,6 +19,7 @@ import {
   Maximize2
 } from 'lucide-react';
 import { PROJECT_INFO } from '../data/propertyData';
+import { saveLead } from '../lib/supabase';
 
 // --- Site Visit Booking Modal ---
 interface BookingModalProps {
@@ -41,12 +42,34 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   const [cabPickup, setCabPickup] = useState(true);
   const [pickupLocation, setPickupLocation] = useState('');
   const [submitted, setSubmitted] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitted(true);
+    setIsSaving(true);
+    try {
+      await saveLead({
+        full_name: name,
+        phone: phone,
+        email: email,
+        property_type: config,
+        budget: config.includes('3') ? '₹75L - ₹1 Cr' : '₹50L - ₹75L',
+        buying_timeline: 'Immediately',
+        contact_method: 'WhatsApp',
+        visit_date: visitDate,
+        time_slot: timeSlot,
+        need_cab: cabPickup,
+        pickup_address: pickupLocation,
+        source: 'VIP Booking Modal',
+      });
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsSaving(false);
+      setSubmitted(true);
+    }
   };
 
   return (
@@ -239,12 +262,30 @@ export const BrochureModal: React.FC<BrochureModalProps> = ({ isOpen, onClose })
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [downloaded, setDownloaded] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   if (!isOpen) return null;
 
-  const handleDownload = (e: React.FormEvent) => {
+  const handleDownload = async (e: React.FormEvent) => {
     e.preventDefault();
-    setDownloaded(true);
+    setIsSaving(true);
+    try {
+      await saveLead({
+        full_name: name,
+        phone: phone,
+        email: email,
+        property_type: 'Brochure Inquiry (2 & 3 BHK)',
+        budget: '₹50L - ₹75L',
+        buying_timeline: 'Immediately',
+        contact_method: 'WhatsApp',
+        source: 'Brochure Download Modal',
+      });
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsSaving(false);
+      setDownloaded(true);
+    }
   };
 
   return (

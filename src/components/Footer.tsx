@@ -3,7 +3,7 @@ import { ShieldCheck, MapPin, Phone, Mail, Clock, ArrowUp, Building2, Heart } fr
 import { PROJECT_INFO } from '../data/propertyData';
 
 interface FooterProps {
-  onOpenBookingModal: () => void;
+  onOpenBookingModal: (config?: string) => void;
   onOpenBrochureModal: () => void;
 }
 

@@ -64,10 +64,13 @@ export interface LeadFormData {
   phone: string;
   email: string;
   preferredConfiguration: string;
+  propertyType: string;
+  budget: string;
+  buyingTimeline: string;
+  contactMethod: string;
   visitDate: string;
   visitTimeSlot: string;
   needCabPickup: boolean;
   pickupAddress: string;
-  budgetRange: string;
   sourceOfLead?: string;
 }

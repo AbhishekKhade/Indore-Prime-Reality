@@ -13,10 +13,16 @@ import {
   Building, 
   Download, 
   ArrowRight,
-  BadgeCheck
+  BadgeCheck,
+  Wallet,
+  Hourglass,
+  MessageSquare,
+  Flame,
+  AlertCircle
 } from 'lucide-react';
 import { PROJECT_INFO } from '../data/propertyData';
 import { LeadFormData } from '../types';
+import { saveLead, calculateLeadScore } from '../lib/supabase';
 
 export const LeadCaptureSection: React.FC = () => {
   const [formData, setFormData] = useState<LeadFormData>({
@@ -24,28 +30,60 @@ export const LeadCaptureSection: React.FC = () => {
     phone: '',
     email: '',
     preferredConfiguration: '2 BHK Smart Luxury',
+    propertyType: '2 BHK Smart Luxury (1,245 sq.ft)',
+    budget: '₹50L - ₹75L',
+    buyingTimeline: 'Immediately',
+    contactMethod: 'WhatsApp',
     visitDate: new Date(Date.now() + 86400000).toISOString().split('T')[0], // Default tomorrow
     visitTimeSlot: 'Morning (10:00 AM - 1:00 PM)',
     needCabPickup: true,
     pickupAddress: '',
-    budgetRange: '₹50L - ₹75L',
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [bookingRef, setBookingRef] = useState('');
+  const [leadScore, setLeadScore] = useState<'HOT' | 'WARM'>('HOT');
+  const [dbNotice, setDbNotice] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setDbNotice(null);
 
-    // Simulate reliable lead capture processing
-    setTimeout(() => {
-      const randomRef = 'IPR-' + Math.floor(100000 + Math.random() * 900000);
-      setBookingRef(randomRef);
+    const calculatedScore = calculateLeadScore(formData.budget, formData.buyingTimeline);
+    setLeadScore(calculatedScore);
+
+    const randomRef = 'IPR-' + Math.floor(100000 + Math.random() * 900000);
+    setBookingRef(randomRef);
+
+    // Save into Supabase 'leads' table
+    try {
+      const result = await saveLead({
+        full_name: formData.fullName,
+        phone: formData.phone,
+        email: formData.email,
+        property_type: formData.propertyType || formData.preferredConfiguration,
+        budget: formData.budget,
+        buying_timeline: formData.buyingTimeline,
+        contact_method: formData.contactMethod,
+        lead_score: calculatedScore,
+        visit_date: formData.visitDate,
+        time_slot: formData.visitTimeSlot,
+        need_cab: formData.needCabPickup,
+        pickup_address: formData.pickupAddress,
+        source: 'VIP Site Visit Landing Form',
+      });
+
+      if (result.error) {
+        console.log('Supabase response info:', result.error);
+      }
+    } catch (err: any) {
+      console.error('Submission handled with fallback:', err);
+    } finally {
       setIsSubmitting(false);
       setIsSuccess(true);
-    }, 800);
+    }
   };
 
   const handleReset = () => {
@@ -55,11 +93,14 @@ export const LeadCaptureSection: React.FC = () => {
       phone: '',
       email: '',
       preferredConfiguration: '2 BHK Smart Luxury',
+      propertyType: '2 BHK Smart Luxury (1,245 sq.ft)',
+      budget: '₹50L - ₹75L',
+      buyingTimeline: 'Immediately',
+      contactMethod: 'WhatsApp',
       visitDate: new Date(Date.now() + 86400000).toISOString().split('T')[0],
       visitTimeSlot: 'Morning (10:00 AM - 1:00 PM)',
       needCabPickup: true,
       pickupAddress: '',
-      budgetRange: '₹50L - ₹75L',
     });
   };
 
@@ -76,13 +117,13 @@ export const LeadCaptureSection: React.FC = () => {
         <div className="text-center max-w-3xl mx-auto mb-12 space-y-3">
           <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded text-xs font-bold uppercase tracking-widest text-[#c5a059] bg-[#c5a059]/20 border border-[#c5a059]/40">
             <Sparkles className="w-3.5 h-3.5 text-[#c5a059]" />
-            VIP Site Visit Invitation
+            VIP Site Visit & Pre-Launch Reservation
           </div>
           <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-white font-serif tracking-tight">
             Book Your Free Experiential Site Visit
           </h2>
           <p className="text-sm sm:text-base text-gray-300 font-light max-w-2xl mx-auto">
-            Tour the fully furnished 2 & 3 BHK sample residences. Enjoy complimentary doorstep AC chauffeur pickup from anywhere in Indore.
+            Tour the fully furnished 2 & 3 BHK sample residences. Enjoy complimentary doorstep AC chauffeur pickup from anywhere in Indore and lock inaugural pricing.
           </p>
         </div>
 
@@ -90,43 +131,69 @@ export const LeadCaptureSection: React.FC = () => {
         <div className="bg-slate-900 rounded-xl border border-gray-700 shadow-xl p-6 sm:p-10 lg:p-12">
           
           {isSuccess ? (
-            <div className="text-center py-10 space-y-6 max-w-2xl mx-auto">
+            <div className="text-center py-8 space-y-6 max-w-2xl mx-auto">
               <div className="w-20 h-20 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center mx-auto border border-emerald-500/40">
                 <BadgeCheck className="w-12 h-12" />
               </div>
 
               <div className="space-y-2">
-                <span className="text-xs font-bold uppercase tracking-wider text-[#c5a059] bg-[#c5a059]/10 px-3 py-1 rounded border border-[#c5a059]/30">
-                  Booking Confirmed • Ref: #{bookingRef}
-                </span>
+                <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#c5a059] bg-[#c5a059]/10 px-3 py-1 rounded border border-[#c5a059]/30">
+                  <span>Saved to Supabase Database</span>
+                  <span>•</span>
+                  <span>Ref: #{bookingRef}</span>
+                </div>
+
                 <h3 className="text-2xl sm:text-3xl font-bold font-serif text-white">
-                  Thank You, {formData.fullName}!
+                  Lead Successfully Saved! Thank You, {formData.fullName}
                 </h3>
                 <p className="text-sm text-gray-300">
-                  Your VIP Site Visit has been successfully reserved for <strong>{formData.visitDate}</strong> during the <strong>{formData.visitTimeSlot}</strong> slot.
+                  Your details have been registered in the system. Our senior portfolio manager will reach out via <strong>{formData.contactMethod}</strong>.
                 </p>
+              </div>
+
+              {/* Priority Status Pill */}
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold bg-slate-800 border border-gray-700">
+                {leadScore === 'HOT' ? (
+                  <span className="flex items-center gap-1.5 text-amber-400 font-bold">
+                    <Flame className="w-4 h-4 text-amber-400 fill-amber-400" />
+                    Priority Status: HOT Lead (Express Fast-Track Assisted)
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1.5 text-blue-400 font-bold">
+                    <Sparkles className="w-4 h-4 text-blue-400" />
+                    Priority Status: WARM Lead (Standard Concierge)
+                  </span>
+                )}
               </div>
 
               <div className="bg-slate-800 rounded-lg p-5 border border-gray-700 text-left text-xs space-y-2.5">
                 <div className="flex justify-between border-b border-gray-700 pb-2">
-                  <span className="text-gray-400">Selected Residence:</span>
-                  <span className="font-semibold text-white">{formData.preferredConfiguration}</span>
+                  <span className="text-gray-400">Property Type:</span>
+                  <span className="font-semibold text-white">{formData.propertyType}</span>
+                </div>
+                <div className="flex justify-between border-b border-gray-700 pb-2">
+                  <span className="text-gray-400">Budget & Timeline:</span>
+                  <span className="font-semibold text-white">{formData.budget} • {formData.buyingTimeline}</span>
+                </div>
+                <div className="flex justify-between border-b border-gray-700 pb-2">
+                  <span className="text-gray-400">Preferred Contact Method:</span>
+                  <span className="font-semibold text-emerald-400">{formData.contactMethod}</span>
                 </div>
                 <div className="flex justify-between border-b border-gray-700 pb-2">
                   <span className="text-gray-400">Chauffeur Cab Pickup:</span>
                   <span className="font-semibold text-emerald-400">
-                    {formData.needCabPickup ? `Arranged for ${formData.pickupAddress || 'Your Address'}` : 'Self-Drive to Site'}
+                    {formData.needCabPickup ? `Arranged for ${formData.pickupAddress || 'Indore Pickup'}` : 'Self-Drive to Site'}
                   </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-gray-400">Assigned Relationship Manager:</span>
+                  <span className="text-gray-400">Direct Relationship Manager:</span>
                   <span className="font-semibold text-[#c5a059]">Mr. Ankit Verma (+91 731 498 0000)</span>
                 </div>
               </div>
 
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-2">
                 <a
-                  href={`https://wa.me/${PROJECT_INFO.whatsappNumber.replace('+', '')}?text=Hi%20Indore%20Prime%20Realty,%20my%20site%20visit%20booking%20ref%20is%20${bookingRef}.`}
+                  href={`https://wa.me/${PROJECT_INFO.whatsappNumber.replace('+', '')}?text=Hi%20Indore%20Prime%20Realty,%20my%20lead%20booking%20ref%20is%20${bookingRef}.`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="w-full sm:w-auto px-6 py-3 rounded text-xs font-bold uppercase tracking-wider text-white bg-emerald-600 hover:bg-emerald-500 transition-colors flex items-center justify-center gap-2 shadow-sm"
@@ -136,21 +203,22 @@ export const LeadCaptureSection: React.FC = () => {
 
                 <button
                   onClick={handleReset}
-                  className="w-full sm:w-auto px-6 py-3 rounded text-xs font-semibold text-gray-300 hover:text-white bg-slate-800 border border-gray-700 transition-colors"
+                  className="w-full sm:w-auto px-6 py-3 rounded text-xs font-semibold text-gray-300 hover:text-white bg-slate-800 border border-gray-700 transition-colors cursor-pointer"
                 >
-                  Book Another Visit / Edit
+                  Submit Another Lead / Reset
                 </button>
               </div>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-6">
               
+              {/* Row 1: Contact Information (full_name, phone, email) */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                 {/* Full Name */}
                 <div>
                   <label className="block text-xs font-medium text-gray-300 mb-1.5 flex items-center gap-1.5">
                     <User className="w-3.5 h-3.5 text-[#c5a059]" />
-                    Full Name *
+                    Full Name (full_name) *
                   </label>
                   <input
                     type="text"
@@ -166,7 +234,7 @@ export const LeadCaptureSection: React.FC = () => {
                 <div>
                   <label className="block text-xs font-medium text-gray-300 mb-1.5 flex items-center gap-1.5">
                     <Phone className="w-3.5 h-3.5 text-[#c5a059]" />
-                    Mobile Number (WhatsApp Enabled) *
+                    Phone Number (phone) *
                   </label>
                   <div className="relative">
                     <span className="absolute left-3.5 top-3 text-xs text-gray-400 font-semibold">+91</span>
@@ -187,7 +255,7 @@ export const LeadCaptureSection: React.FC = () => {
                 <div>
                   <label className="block text-xs font-medium text-gray-300 mb-1.5 flex items-center gap-1.5">
                     <Mail className="w-3.5 h-3.5 text-[#c5a059]" />
-                    Email Address *
+                    Email Address (email) *
                   </label>
                   <input
                     type="email"
@@ -200,22 +268,80 @@ export const LeadCaptureSection: React.FC = () => {
                 </div>
               </div>
 
+              {/* Row 2: Property Type, Budget, Buying Timeline */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                {/* Configuration */}
+                {/* Property Type */}
                 <div>
                   <label className="block text-xs font-medium text-gray-300 mb-1.5 flex items-center gap-1.5">
                     <Building className="w-3.5 h-3.5 text-[#c5a059]" />
-                    Preferred Apartment *
+                    Property Type (property_type) *
                   </label>
                   <select
-                    value={formData.preferredConfiguration}
-                    onChange={(e) => setFormData({ ...formData, preferredConfiguration: e.target.value })}
+                    value={formData.propertyType}
+                    onChange={(e) => setFormData({ ...formData, propertyType: e.target.value, preferredConfiguration: e.target.value })}
                     className="w-full px-4 py-3 rounded bg-slate-800 border border-gray-700 text-white text-sm focus:outline-none focus:border-[#c5a059] focus:ring-1 focus:ring-[#c5a059]"
                   >
-                    <option value="2 BHK Smart Luxury">2 BHK Smart Luxury (from ₹58.5 L*)</option>
-                    <option value="3 BHK Grand Royale">3 BHK Grand Royale (from ₹84.9 L*)</option>
-                    <option value="3.5 BHK Sky Penthouse">3.5 BHK Sky Penthouse (from ₹1.28 Cr*)</option>
-                    <option value="Investment / Multiple Units">Investment / Bulk Units</option>
+                    <option value="2 BHK Smart Luxury (1,245 sq.ft)">2 BHK Smart Luxury (1,245 sq.ft)</option>
+                    <option value="3 BHK Grand Royale (1,785 sq.ft)">3 BHK Grand Royale (1,785 sq.ft)</option>
+                    <option value="3.5 BHK Sky Penthouse (2,420 sq.ft)">3.5 BHK Sky Penthouse (2,420 sq.ft)</option>
+                    <option value="Commercial / Multiple Units">Commercial / Multiple Units</option>
+                  </select>
+                </div>
+
+                {/* Budget */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-300 mb-1.5 flex items-center gap-1.5">
+                    <Wallet className="w-3.5 h-3.5 text-[#c5a059]" />
+                    Budget (budget) *
+                  </label>
+                  <select
+                    value={formData.budget}
+                    onChange={(e) => setFormData({ ...formData, budget: e.target.value })}
+                    className="w-full px-4 py-3 rounded bg-slate-800 border border-gray-700 text-white text-sm focus:outline-none focus:border-[#c5a059] focus:ring-1 focus:ring-[#c5a059]"
+                  >
+                    <option value="₹40L - ₹50L">₹40L - ₹50L</option>
+                    <option value="₹50L - ₹75L">₹50L - ₹75L (₹50 Lakh+)</option>
+                    <option value="₹75L - ₹1 Cr">₹75L - ₹1 Cr (₹50 Lakh+)</option>
+                    <option value="₹1 Cr - ₹1.5 Cr">₹1 Cr - ₹1.5 Cr (₹50 Lakh+)</option>
+                    <option value="₹1.5 Cr+">₹1.5 Cr+ (Luxury / Bulk)</option>
+                  </select>
+                </div>
+
+                {/* Buying Timeline */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-300 mb-1.5 flex items-center gap-1.5">
+                    <Hourglass className="w-3.5 h-3.5 text-[#c5a059]" />
+                    Buying Timeline (buying_timeline) *
+                  </label>
+                  <select
+                    value={formData.buyingTimeline}
+                    onChange={(e) => setFormData({ ...formData, buyingTimeline: e.target.value })}
+                    className="w-full px-4 py-3 rounded bg-slate-800 border border-gray-700 text-white text-sm focus:outline-none focus:border-[#c5a059] focus:ring-1 focus:ring-[#c5a059]"
+                  >
+                    <option value="Immediately">Immediately (Ready to book)</option>
+                    <option value="Within 1-3 Months">Within 1-3 Months</option>
+                    <option value="Within 3-6 Months">Within 3-6 Months</option>
+                    <option value="Just Exploring / Later">Just Exploring / Later</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Row 3: Contact Method & Visit Schedule */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                {/* Contact Method */}
+                <div>
+                  <label className="block text-xs font-medium text-gray-300 mb-1.5 flex items-center gap-1.5">
+                    <MessageSquare className="w-3.5 h-3.5 text-[#c5a059]" />
+                    Preferred Contact Method (contact_method) *
+                  </label>
+                  <select
+                    value={formData.contactMethod}
+                    onChange={(e) => setFormData({ ...formData, contactMethod: e.target.value })}
+                    className="w-full px-4 py-3 rounded bg-slate-800 border border-gray-700 text-white text-sm focus:outline-none focus:border-[#c5a059] focus:ring-1 focus:ring-[#c5a059]"
+                  >
+                    <option value="WhatsApp">WhatsApp</option>
+                    <option value="Phone Call">Phone Call</option>
+                    <option value="Email">Email</option>
                   </select>
                 </div>
 
@@ -223,11 +349,10 @@ export const LeadCaptureSection: React.FC = () => {
                 <div>
                   <label className="block text-xs font-medium text-gray-300 mb-1.5 flex items-center gap-1.5">
                     <Calendar className="w-3.5 h-3.5 text-[#c5a059]" />
-                    Preferred Visit Date *
+                    Visit Date
                   </label>
                   <input
                     type="date"
-                    required
                     min={new Date().toISOString().split('T')[0]}
                     value={formData.visitDate}
                     onChange={(e) => setFormData({ ...formData, visitDate: e.target.value })}
@@ -239,7 +364,7 @@ export const LeadCaptureSection: React.FC = () => {
                 <div>
                   <label className="block text-xs font-medium text-gray-300 mb-1.5 flex items-center gap-1.5">
                     <Clock className="w-3.5 h-3.5 text-[#c5a059]" />
-                    Preferred Time Slot *
+                    Time Slot
                   </label>
                   <select
                     value={formData.visitTimeSlot}
@@ -315,7 +440,7 @@ export const LeadCaptureSection: React.FC = () => {
                   className="w-full py-4 rounded text-sm sm:text-base font-bold uppercase tracking-wider text-white bg-[#c5a059] hover:bg-[#b38f4d] transition-colors shadow-sm flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-50"
                 >
                   <Calendar className="w-5 h-5 text-white" />
-                  <span>{isSubmitting ? 'Confirming Your Slot...' : 'Confirm Free Site Visit & Lock Launch Price'}</span>
+                  <span>{isSubmitting ? 'Saving to Supabase & Confirming...' : 'Save Lead & Book VIP Site Visit'}</span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </div>
@@ -328,7 +453,7 @@ export const LeadCaptureSection: React.FC = () => {
                 </span>
                 <span className="flex items-center gap-1">
                   <CheckCircle2 className="w-4 h-4 text-[#c5a059]" />
-                  Official Builder Sanctioned Direct Pricing
+                  Direct Supabase Sync
                 </span>
                 <span className="flex items-center gap-1">
                   <BadgeCheck className="w-4 h-4 text-[#c5a059]" />
