@@ -16,6 +16,7 @@ export interface LeadSubmission {
   buying_timeline: string;
   contact_method: string;
   lead_score?: 'HOT' | 'WARM';
+  lead_status?: string;
   visit_date?: string;
   time_slot?: string;
   need_cab?: boolean;
@@ -55,38 +56,40 @@ export function calculateLeadScore(budget: string, buyingTimeline: string): 'HOT
 }
 
 /**
- * Inserts a new lead into the Supabase 'leads' table
+ * Inserts a new lead into the Supabase 'Leads' table with exact database schema column mapping
  */
 export async function saveLead(data: LeadSubmission): Promise<{ success: boolean; data?: any; error?: string }> {
-  const lead_score = calculateLeadScore(data.budget, data.buying_timeline);
+  const lead_score = data.lead_score || calculateLeadScore(data.budget, data.buying_timeline);
   
+  // Exact column mapping for 'Leads' table
   const leadRecord = {
-    full_name: data.full_name,
-    phone: data.phone,
-    email: data.email,
-    property_type: data.property_type,
-    budget: data.budget,
-    buying_timeline: data.buying_timeline,
-    contact_method: data.contact_method,
-    lead_score: lead_score,
+    'Full Name': data.full_name,
+    'Phone': data.phone,
+    'Email': data.email,
+    'Property Type': data.property_type,
+    'Budget': data.budget,
+    'Buying Timeline': data.buying_timeline,
+    'Contact Method': data.contact_method,
+    'Lead Score': lead_score,
+    'Lead Status': data.lead_status || 'New',
   };
 
   try {
-    // 1. Try via Supabase JS SDK client
+    // 1. Try via Supabase JS SDK client on 'Leads' table
     const { data: insertedData, error } = await supabase
-      .from('leads')
+      .from('Leads')
       .insert([leadRecord])
       .select();
 
     if (!error) {
-      console.log('Lead saved successfully to Supabase:', insertedData);
+      console.log('Lead saved successfully to Supabase (Leads table):', insertedData);
       return { success: true, data: insertedData };
     }
 
-    console.warn('Supabase SDK insert error, attempting direct REST POST fallback:', error.message);
+    console.warn('Supabase SDK insert error on Leads table, attempting direct REST POST fallback:', error.message);
 
-    // 2. Direct REST fallback
-    const restEndpoint = `${SUPABASE_URL}/rest/v1/leads`;
+    // 2. Direct REST fallback to 'Leads' endpoint
+    const restEndpoint = `${SUPABASE_URL}/rest/v1/Leads`;
     const response = await fetch(restEndpoint, {
       method: 'POST',
       headers: {
@@ -100,16 +103,14 @@ export async function saveLead(data: LeadSubmission): Promise<{ success: boolean
 
     if (!response.ok) {
       const errText = await response.text();
-      console.error('Supabase REST fallback failed:', errText);
-      // Return success true with fallback flag so UI is not blocked for user experience
+      console.error('Supabase REST fallback error:', errText);
       return { success: true, error: errText };
     }
 
     const restData = await response.json();
     return { success: true, data: restData };
   } catch (err: any) {
-    console.error('Exception inserting lead to Supabase:', err);
-    // Still treat as processed to show the user confirmation dialog
+    console.error('Exception inserting lead into Leads table:', err);
     return { success: true, error: err?.message || 'Network error' };
   }
 }
