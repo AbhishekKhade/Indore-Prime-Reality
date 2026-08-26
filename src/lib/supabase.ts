@@ -56,7 +56,7 @@ export function calculateLeadScore(budget: string, buyingTimeline: string): 'HOT
 }
 
 /**
- * Inserts a new lead into the Supabase 'leads' table with exact database schema
+ * Inserts a new lead into the Supabase 'Leads' table with exact database schema
  */
 export async function saveLead(data: LeadSubmission): Promise<{ success: boolean; data?: any; error?: string }> {
   const scoreValue = data.lead_score || calculateLeadScore(data.budget, data.buying_timeline);
@@ -74,7 +74,7 @@ export async function saveLead(data: LeadSubmission): Promise<{ success: boolean
 
   try {
     const { data: resData, error } = await supabase
-      .from('leads')
+      .from('Leads')
       .insert([payload])
       .select();
 
@@ -82,7 +82,7 @@ export async function saveLead(data: LeadSubmission): Promise<{ success: boolean
 
     if (error) {
       // Direct REST fallback if needed
-      const restEndpoint = `${SUPABASE_URL}/rest/v1/leads`;
+      const restEndpoint = `${SUPABASE_URL}/rest/v1/Leads`;
       const response = await fetch(restEndpoint, {
         method: 'POST',
         headers: {
