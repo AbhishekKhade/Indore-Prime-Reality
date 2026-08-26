@@ -62,14 +62,14 @@ export async function saveLead(data: LeadSubmission): Promise<{ success: boolean
   const scoreValue = data.lead_score || calculateLeadScore(data.budget, data.buying_timeline);
   
   const payload = {
-    full_name: data.full_name,
-    phone: data.phone,
-    email: data.email,
-    property_type: data.property_type,
-    budget: data.budget,
-    buying_timeline: data.buying_timeline,
-    lead_score: scoreValue,
-    lead_status: 'NEW',
+    'Full Name': data.full_name,
+    'Phone': data.phone,
+    'Email': data.email,
+    'Property Type': data.property_type,
+    'Budget': data.budget,
+    'Buying Timeline': data.buying_timeline,
+    'Lead Score': scoreValue,
+    'Lead Status': 'NEW',
   };
 
   try {
